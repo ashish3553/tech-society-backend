@@ -13,20 +13,15 @@ const assignmentRoutes    = require('./routes/assignments')
 const submissionRoutes    = require('./routes/submissions')
 const uploadRoutes        = require('./routes/upload')
 const userRoutes          = require('./routes/users')
-const codeSubmissionRoutes = require('./routes/codeSubmission');// Auth middleware & error handler
+const codeSubmissionRoutes = require('./routes/codeSubmission')
+
+// Auth middleware & error handler
 const auth         = require('./middleware/auth')
 const errorHandler = require('./middleware/errorHandler')
-const { codeExecutionLimiter } = require('./middleware/rateLimiter');
-
+const { codeExecutionLimiter } = require('./middleware/rateLimiter')
 
 // Connect to database
 connectDB()
-
-
-
-
-
-
 
 const app = express()
 
@@ -39,23 +34,31 @@ const corsOptions = {
   ],
   credentials: true,
   optionsSuccessStatus: 200
-};
+}
 
+// — Base route (for Railway health check)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'Tech Society Backend API',
+    message: 'Server is running successfully',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  })
+})
 
-// — Health check
+// — Health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || 'development'
+  })
+})
 
-
+// — Middleware
 app.use(cors(corsOptions))
-
-// — Security & parsing middleware
 app.use(helmet())
 app.use(express.json({ limit: '10mb' }))
 
@@ -86,13 +89,9 @@ app.use('/api/assignments', auth, submissionRoutes)
 app.use('/api/upload',      auth, uploadRoutes) 
 app.use('/api/users',       auth, userRoutes)
 app.use('/api/stats',       auth, require('./routes/stats'))
-app.use('/api/code-exec', codeExecutionLimiter, require('./routes/codeExecution'));
-app.use('/api', codeSubmissionRoutes);
-app.use('/api/sessions', require('./routes/sessions'));
-
-
-
-
+app.use('/api/code-exec', codeExecutionLimiter, require('./routes/codeExecution'))
+app.use('/api', codeSubmissionRoutes)
+app.use('/api/sessions', require('./routes/sessions'))
 
 // — Error handling
 app.use(errorHandler)
