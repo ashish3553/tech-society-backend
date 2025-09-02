@@ -162,6 +162,7 @@ app.use((req, res, next) => {
 // 14) Central error handler
 app.use(errorHandler);
 
+const PORT = process.env.PORT || 10000;
 // 15) Boot logs
 console.log('🔧 Environment check:');
 console.log('- NODE_ENV:', process.env.NODE_ENV);
@@ -174,7 +175,7 @@ if (process.env.CORS_ORIGINS) console.log('- CORS_ORIGINS:', process.env.CORS_OR
 console.log('- Effective CORS allowlist:', corsAllowlist);
 
 // 16) Start
-const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
