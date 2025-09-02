@@ -107,8 +107,7 @@ console.log('- MONGODB_URI exists:', !!process.env.MONGODB_URI)
 console.log('- JWT_SECRET exists:', !!process.env.JWT_SECRET)
 
 
-app.listen(PORT,'0.0.0.0', () => {
-  console.log(`🚀 Server listening on port ${PORT}`)
-})
+app.get('/', (req, res) => res.json({ ok: true, service: 'tech-society-backend' })); // optional sanity route
+app.listen(PORT, '0.0.0.0', () => console.log(`Listening on ${PORT}`));
 
 module.exports = app
