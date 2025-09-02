@@ -59,12 +59,17 @@ const isAllowedOrigin = (origin, list) => {
   return false;
 };
 const corsAllowlist = [...envAllow, ...defaultAllow];
-const corsOptions = {
-  origin: (origin, cb) =>
-    isAllowedOrigin(origin, corsAllowlist) ? cb(null, true) : cb(new Error(`CORS blocked: ${origin}`)),
-  credentials: true,
-  optionsSuccessStatus: 200
-};
+
+
+const corsOptions ={
+    origin: '*',
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    preflightContinue: false,
+}
+
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
