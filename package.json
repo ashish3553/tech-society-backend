@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "Backend for Tech Society Question Bank Platform",
   "main": "server.js",
-   {
+   
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
     "build": "echo 'No build needed for Node.js'"
-  }
+  
 },
   "keywords": [
     "education",
