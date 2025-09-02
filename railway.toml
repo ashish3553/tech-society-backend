@@ -1,6 +1,10 @@
 [build]
-builder = "dockerfile"
+builder = "nixpacks"
 
 [deploy]
 startCommand = "npm start"
-# Remove healthcheck temporarily
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+
+[variables]
+PORT = "8080"

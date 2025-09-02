@@ -61,13 +61,17 @@ const isAllowedOrigin = (origin, list) => {
 const corsAllowlist = [...envAllow, ...defaultAllow];
 
 
-const corsOptions ={
-    origin: '*',
-    optionsSuccessStatus: 200,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    preflightContinue: false,
-}
+const corsOptions = {
+  origin: [
+    'https://practicearenauieth.vercel.app', // your current frontend URL
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+};
 
 
 app.use(cors(corsOptions));
@@ -159,7 +163,6 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 // 15) Boot logs
-const PORT = process.env.PORT || 5000;
 console.log('🔧 Environment check:');
 console.log('- NODE_ENV:', process.env.NODE_ENV);
 console.log('- PORT:', PORT);
@@ -171,6 +174,9 @@ if (process.env.CORS_ORIGINS) console.log('- CORS_ORIGINS:', process.env.CORS_OR
 console.log('- Effective CORS allowlist:', corsAllowlist);
 
 // 16) Start
-app.listen(PORT, '0.0.0.0', () => console.log(`✅ Listening on ${PORT}`));
-
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+});
 module.exports = app;

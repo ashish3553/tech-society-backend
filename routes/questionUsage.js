@@ -17,13 +17,6 @@ router.get(
   questionUsageController.getQuestionsWithUsage
 );
 
-// 2️⃣ Per-question history
-//    GET /api/questions/:questionId/usage-history
-router.get(
-  '/:questionId/usage-history',
-  questionUsageController.getQuestionUsageHistory
-);
-
 // 3️⃣ Admin/Mentor analytics summary
 //    GET /api/questions/analytics/usage-summary
 router.get(
@@ -89,5 +82,14 @@ router.get(
     }
   }
 );
+
+// 2️⃣ Per-question history
+//    GET /api/questions/:questionId/usage-history
+router.get(
+  '/:questionId/usage-history',
+  questionUsageController.getQuestionUsageHistory
+);
+
+
 
 module.exports = router;
