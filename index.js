@@ -128,7 +128,7 @@ app.use(rateLimit({
 }));
 
 // 7) Public routes
-app.use('/api/auth', auth);
+app.use('/api/auth', authRoutes);
 
 // 7.1) Diagnostics (no auth; keep!)
 app.use('/api/diagnostics', diagnosticsRouter);
