@@ -23,44 +23,7 @@ const { codeExecutionLimiter } = require('./middleware/rateLimiter');
 connectDB()
 
 
-// Piston API setup for Railway environment
-const setupPistonAPI = async () => {
-  if (process.env.NODE_ENV === 'production' && process.env.RAILWAY_ENVIRONMENT) {
-    try {
-      console.log('🐳 Setting up Piston API in Railway environment...');
-      
-      const { spawn } = require('child_process');
-      
-      // Start Piston container
-      const pistonProcess = spawn('docker', [
-        'run', '-d', '-p', '2000:2000', 
-        '--name', 'piston-api',
-        '--rm',
-        'ghcr.io/engineer-man/piston'
-      ]);
-      
-      pistonProcess.stdout.on('data', (data) => {
-        console.log(`Piston setup: ${data}`);
-      });
-      
-      pistonProcess.stderr.on('data', (data) => {
-        console.error(`Piston error: ${data}`);
-      });
-      
-      // Wait a moment for container to start
-      setTimeout(() => {
-        console.log('✅ Piston API should be ready on port 2000');
-      }, 10000);
-      
-    } catch (error) {
-      console.error('❌ Piston setup failed:', error.message);
-      console.log('🔄 Code execution will use fallback method');
-    }
-  }
-};
 
-// Call setup function
-setupPistonAPI();
 
 
 
