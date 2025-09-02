@@ -78,6 +78,18 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+
+// — Health check
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+
 app.use(cors(corsOptions))
 
 // — Security & parsing middleware
@@ -117,15 +129,7 @@ app.use('/api/sessions', require('./routes/sessions'));
 
 
 
-// — Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
+
 
 // — Error handling
 app.use(errorHandler)
