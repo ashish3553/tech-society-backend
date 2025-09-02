@@ -96,8 +96,18 @@ app.use('/api/sessions', require('./routes/sessions'))
 // — Error handling
 app.use(errorHandler)
 
+
+
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
+
+console.log('🔧 Environment check:')
+console.log('- NODE_ENV:', process.env.NODE_ENV)
+console.log('- PORT:', PORT)
+console.log('- MONGODB_URI exists:', !!process.env.MONGODB_URI)
+console.log('- JWT_SECRET exists:', !!process.env.JWT_SECRET)
+
+
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`🚀 Server listening on port ${PORT}`)
 })
 

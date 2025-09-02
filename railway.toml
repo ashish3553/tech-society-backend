@@ -1,11 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
 
 [deploy]
-healthcheckPath = "/api/health"
-healthcheckTimeout = 300
 startCommand = "npm start"
-
-[services.web]
-tcpProxyApplicationPort = 5000
+# Remove healthcheck temporarily
