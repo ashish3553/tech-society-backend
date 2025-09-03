@@ -28,7 +28,7 @@ router.put(   '/:id',                         authorize('mentor','admin'), ctrl.
 router.delete('/:id',                         authorize('mentor','admin'), ctrl.deleteAssignment);
 
 // mentor/Admin: list & grade submissions
-router.get(   '/:id/submissions',             authorize('mentor','admin'), ctrl.getSubmissions);
+router.get(   '/:id/submissions/detail',             authorize('mentor','admin'), ctrl.getSubmissions);
 router.get(   '/:id/submissions/:studentId',  authorize('mentor','admin'), ctrl.getSubmission);
 router.put(   '/:id/submissions/:studentId',  authorize('mentor','admin'), ctrl.gradeSubmission);
 

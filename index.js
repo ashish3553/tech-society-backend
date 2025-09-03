@@ -130,8 +130,7 @@ app.use(rateLimit({
 // 7) Public routes
 app.use('/api/auth', authRoutes);
 
-// 7.1) Diagnostics (no auth; keep!)
-app.use('/api/diagnostics', diagnosticsRouter);
+
 
 // 8) Mixed/public usage analytics routes first
 app.use('/api/questions', questionUsageRouter);
@@ -163,16 +162,16 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 10000;
-// 15) Boot logs
-console.log('🔧 Environment check:');
-console.log('- NODE_ENV:', process.env.NODE_ENV);
-console.log('- PORT:', PORT);
-console.log('- MONGODB_URI exists:', !!process.env.MONGODB_URI);
-console.log('- JWT_SECRET exists:', !!process.env.JWT_SECRET);
-console.log('- PISTON_URL:', process.env.PISTON_URL || 'not set');
-console.log('- CLIENT_URL:', process.env.CLIENT_URL || 'not set');
-if (process.env.CORS_ORIGINS) console.log('- CORS_ORIGINS:', process.env.CORS_ORIGINS);
-console.log('- Effective CORS allowlist:', corsAllowlist);
+// // 15) Boot logs  -->  during deployment traking ke kaam aata hai
+// console.log('🔧 Environment check:');
+// console.log('- NODE_ENV:', process.env.NODE_ENV);
+// console.log('- PORT:', PORT);
+// console.log('- MONGODB_URI exists:', !!process.env.MONGODB_URI);
+// console.log('- JWT_SECRET exists:', !!process.env.JWT_SECRET);
+// console.log('- PISTON_URL:', process.env.PISTON_URL || 'not set');
+// console.log('- CLIENT_URL:', process.env.CLIENT_URL || 'not set');
+// if (process.env.CORS_ORIGINS) console.log('- CORS_ORIGINS:', process.env.CORS_ORIGINS);
+// console.log('- Effective CORS allowlist:', corsAllowlist);
 
 // 16) Start
 
