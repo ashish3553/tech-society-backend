@@ -2,6 +2,8 @@
 const Assignment = require('../models/Assignment');
 const Submission = require('../models/Submission');
 const Session = require('../models/Session'); 
+const CodeSubmission = require('../models/CodeSubmission');
+
 
 // Import question usage cleanup functions
 const QuestionUsage = require('../models/QuestionUsage');
@@ -280,21 +282,59 @@ exports.getAssignment = async (req, res, next) => {
 exports.getMySubmission = async (req, res, next) => {
   try {
     const assignmentId = req.params.id;
-    const studentId    = req.user.id;
-    const sub = await Submission.findOne({
+    const studentId = req.user.id;
+
+    // Look in separate Submission model first
+    let submission = await Submission.findOne({
       assignment: assignmentId,
-      student:    studentId
+      student: studentId
     });
-    if (!sub) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'No submission found' });
+
+    // If not found, look in embedded submissions
+    if (!submission) {
+      const assignment = await Assignment.findById(assignmentId);
+      if (!assignment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assignment not found'
+        });
+      }
+
+      const embeddedSubmission = assignment.submissions.find(
+        sub => sub.student.toString() === studentId.toString()
+      );
+
+      if (embeddedSubmission) {
+        submission = {
+          _id: embeddedSubmission._id,
+          assignment: assignmentId,
+          student: studentId,
+          answers: embeddedSubmission.answers || [],
+          grade: embeddedSubmission.grade,
+          feedback: embeddedSubmission.feedback,
+          submittedAt: embeddedSubmission.submittedAt,
+          isFinal: true
+        };
+      }
     }
-    res.json({ success: true, data: sub });
-  } catch (err) {
-    next(err);
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'No submission found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: submission
+    });
+  } catch (error) {
+    console.error('[getMySubmission] Error:', error);
+    next(error);
   }
 };
+
 
 // @desc Update an assignment - MODIFIED WITH USAGE TRACKING
 exports.updateAssignment = async (req, res, next) => {
@@ -455,24 +495,158 @@ exports.getSubmissions = async (req, res, next) => {
   }
 }
 
-// @desc Mentor/Admin: get one student's submission
+// FIXED: Get single submission for mentor/admin
 exports.getSubmission = async (req, res, next) => {
   try {
-    const a = await Assignment.findById(req.params.id)
-      .populate('submissions.student','name email');
-    if (!a) return res.status(404).json({ success:false, message:'Not found' });
+    const { id: assignmentId, studentId } = req.params;
 
-    const sub = a.submissions.find(
-      s => s.student._id.toString() === req.params.studentId
-    );
-    if (!sub) {
-      return res.status(404).json({ success:false, message:'Submission not found' });
+    console.log(`[getSubmission] Looking for assignment ${assignmentId}, student ${studentId}`);
+
+    // First, get the assignment
+    const assignment = await Assignment.findById(assignmentId)
+      .populate('questions', 'content type options correctAnswers testCases explanation images')
+      .populate('createdBy', 'name email');
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
     }
-    res.json({ success:true, data: sub });
-  } catch (err) {
-    next(err);
+
+    // Look for submission in separate Submission model first
+    let submission = await Submission.findOne({
+      assignment: assignmentId,
+      student: studentId
+    }).populate('student', 'name email branch year');
+
+    // If not found in separate model, look in embedded submissions (backward compatibility)
+    if (!submission) {
+      const assignmentWithSubmissions = await Assignment.findById(assignmentId)
+        .populate('submissions.student', 'name email branch year');
+      
+      const embeddedSubmission = assignmentWithSubmissions.submissions.find(
+        sub => sub.student._id.toString() === studentId.toString()
+      );
+
+      if (embeddedSubmission) {
+        // Convert embedded submission to match Submission model format
+        submission = {
+          _id: embeddedSubmission._id,
+          assignment: assignmentId,
+          student: embeddedSubmission.student,
+          answers: embeddedSubmission.answers || [],
+          grade: embeddedSubmission.grade,
+          feedback: embeddedSubmission.feedback,
+          submittedAt: embeddedSubmission.submittedAt,
+          isFinal: true // embedded submissions are always final
+        };
+      }
+    }
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found'
+      });
+    }
+
+    console.log(`[getSubmission] Found submission:`, submission._id);
+
+    res.json({
+      success: true,
+      data: {
+        assignment: {
+          _id: assignment._id,
+          title: assignment.title,
+          description: assignment.description,
+          mode: assignment.mode,
+          questions: assignment.questions,
+          createdBy: assignment.createdBy,
+          createdAt: assignment.createdAt,
+          startDate: assignment.startDate,
+          dueDate: assignment.dueDate
+        },
+        submission
+      }
+    });
+  } catch (error) {
+    console.error('[getSubmission] Error:', error);
+    next(error);
   }
-}
+};
+
+// controllers/assignment.js - ADD this function
+
+
+// GET /api/assignments/:id/submissions/:studentId/detail - MISSING FUNCTION
+exports.getSubmissionDetail = async (req, res, next) => {
+  try {
+    const { id: assignmentId, studentId } = req.params;
+    
+    console.log(`[getSubmissionDetail] Assignment: ${assignmentId}, Student: ${studentId}`);
+    
+    // Get the assignment with populated questions
+    const assignment = await Assignment.findById(assignmentId)
+      .populate({
+        path: 'questions',
+        model: 'Question',
+        select: 'content type options correctAnswers testCases explanation isCodingQuestion autoGraded'
+      });
+      
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found'
+      });
+    }
+
+    // Get regular submission
+    const submission = await Submission.findOne({
+      assignment: assignmentId,
+      student: studentId,
+      isFinal: true
+    }).populate('student', 'name email branch year');
+
+    // Get all code submissions for this student and assignment
+    const codeSubmissions = await CodeSubmission.find({
+      assignment: assignmentId,
+      student: studentId,
+      isDraft: false
+    }).populate('question', 'content type testCases');
+
+    // Build comprehensive response
+    const response = {
+      assignment: {
+        _id: assignment._id,
+        title: assignment.title,
+        mode: assignment.mode
+      },
+      student: submission?.student || { _id: studentId },
+      submission: submission || null,
+      questions: assignment.questions,
+      answers: submission?.answers || [],
+      codeSubmissions: codeSubmissions || [],
+      grade: submission?.grade || null,
+      submittedAt: submission?.submittedAt || null,
+      assignmentTitle: assignment.title
+    };
+
+    console.log(`[getSubmissionDetail] Found ${codeSubmissions.length} code submissions`);
+    
+    res.json({
+      success: true,
+      data: response
+    });
+
+  } catch (error) {
+    console.error('[getSubmissionDetail] Error:', error);
+    next(error);
+  }
+};
+
+
+
 
 // @desc Mentor/Admin: grade a student's submission
 exports.gradeSubmission = async (req, res, next) => {

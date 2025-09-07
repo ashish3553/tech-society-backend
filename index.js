@@ -16,6 +16,11 @@ const uploadRoutes          = require('./routes/upload');
 const userRoutes            = require('./routes/users');
 const codeSubmissionRoutes  = require('./routes/codeSubmission');
 const diagnosticsRouter     = require('./routes/diagnostics');
+const articleRoutes = require('./routes/articles');
+const authorRoutes = require('./routes/authors');
+const categoryRoutes = require('./routes/categories');
+
+
 
 // Auth middleware & error handler
 const auth                  = require('./middleware/auth');
@@ -141,6 +146,10 @@ app.use('/api/assignments',  auth, assignmentRoutes);
 app.use('/api/assignments',  auth, submissionRoutes);
 app.use('/api/upload',       auth, uploadRoutes);
 app.use('/api/users',        auth, userRoutes);
+app.use('/api/articles', articleRoutes);
+app.use('/api/authors', authorRoutes);
+app.use('/api/categories', require('./routes/categories')); // Changed from /api/articles/categories
+app.use('/api/articles', require('./routes/articles')); // Your existing article routes
 app.use('/api/stats',        auth, require('./routes/stats'));
 
 // 10) Code execution routes (with limiter)

@@ -1,37 +1,27 @@
-const express       = require('express');
-const authorize     = require('../middleware/authorize');
+const express = require('express');
+const authorize = require('../middleware/authorize');
+const auth = require('../middleware/auth');
 const {
-  getAllUsers,           // formerly `getUsers`
+  getAllUsers,
   getUsersByRole,
-  getStudentProfile
+  getStudentProfile,
+  getUserProfile,
+  updateUserProfile,
+  banUser,
+  unbanUser
 } = require('../controllers/user');
-
-
 
 const router = express.Router();
 
-// 1️⃣ GET /api/users/           → only admin/mentor can list *all* active users
-router.get(
-  '/',
-  authorize('admin','mentor'),
-  getAllUsers
-);
+// User profile routes
+router.get('/profile', auth, getUserProfile);
+router.put('/profile', auth, updateUserProfile);
 
-// 2️⃣ GET /api/users/by-role    → admin/mentor can list by role + completed counts
-router.get(
-  '/by-role',
-  authorize('admin','mentor'),
-  getUsersByRole
-);
-
-// 3️⃣ GET /api/users/:id        → view a single student’s profile
-router.get(
-  '/:id',
-  authorize('admin','mentor'), 
-  getStudentProfile
-);
-
-
+// Admin user management
+router.get('/', authorize('admin','mentor'), getAllUsers);
+router.get('/by-role', authorize('admin','mentor'), getUsersByRole);
+router.get('/:id', authorize('admin','mentor'), getStudentProfile);
+router.put('/:id/ban', auth, authorize('admin'), banUser);
+router.put('/:id/unban', auth, authorize('admin'), unbanUser);
 
 module.exports = router;
- 

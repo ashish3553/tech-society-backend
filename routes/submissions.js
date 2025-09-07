@@ -1,3 +1,5 @@
+// routes/submission.js - FIXED with detail endpoint
+
 const express = require('express')
 const router  = express.Router({ mergeParams: true })
 const auth    = require('../middleware/auth')
@@ -8,23 +10,29 @@ const {
   submitAssignment,
   // mentor/admin:
   getSubmissions,
-  getSubmission: getOneSubmission,
+  getSubmission,
+  getSubmissionDetail, // NEW: Add the detail endpoint
   gradeSubmission,
-  // new for student:
+  // student:
   getMySubmission
 } = require('../controllers/assignment')
 
 router.use(auth)
 
-// student can fetch *their own* submission
+// Student routes
 router.get('/:id/submission', getMySubmission)
-
-// student submit or save draft
 router.post('/:id/submit', submitAssignment)
 
-// mentor/admin endpoints
+// Mentor/Admin routes
 router.get('/:id/submissions', authorizeRoles('mentor','admin'), getSubmissions)
-router.get('/:id/submissions/:studentId', authorizeRoles('mentor','admin'), getOneSubmission)
+
+// FIXED: Add the missing detail endpoint
+router.get('/:id/submissions/:studentId/detail', authorizeRoles('mentor','admin'), getSubmissionDetail)
+
+// Basic submission endpoint (fallback)
+router.get('/:id/submissions/:studentId', authorizeRoles('mentor','admin'), getSubmission)
+
+// Grading endpoint
 router.put('/:id/submissions/:studentId/grade', authorizeRoles('mentor','admin'), gradeSubmission)
 
 module.exports = router

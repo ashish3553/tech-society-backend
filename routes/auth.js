@@ -1,13 +1,29 @@
+// routes/auth.js - Add resend verification route to your existing routes
 const express = require('express')
-const router  = express.Router()
-const { register, verifyEmail, login, forgotPassword, resetPassword, fetchMe } = require('../controllers/auth')
-const auth    = require('../middleware/auth')
+const router = express.Router()
+const {
+  register,
+  login,
+  verifyEmail,
+  resendVerification, // NEW
+  forgotPassword,
+  resetPassword,
+  fetchMe
+} = require('../controllers/auth')
 
-router.post('/register',    register)
-router.get ('/verify/:token',verifyEmail)
-router.post('/login',       login)
+const auth = require('../middleware/auth')
+
+// Public routes
+router.post('/register', register)
+router.post('/login', login)
+router.get('/verify/:token', verifyEmail)
 router.post('/forgot-password', forgotPassword)
 router.post('/reset-password/:token', resetPassword)
-router.get ('/me', auth, fetchMe)
+
+// NEW: Resend verification email route
+router.post('/resend-verification', resendVerification)
+
+// Protected routes
+router.get('/me', auth, fetchMe)
 
 module.exports = router
