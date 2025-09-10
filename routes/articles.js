@@ -6,6 +6,7 @@ const authorize = require('../middleware/authorize');
 const { canEditArticle, canPublishArticle } = require('../middleware/authorAuth');
 const articleController = require('../controllers/articleController');
 
+
 // ==========================================
 // PUBLIC ROUTES
 // ==========================================
@@ -13,19 +14,35 @@ const articleController = require('../controllers/articleController');
 // GET /api/articles - Get published articles
 router.get('/', articleController.getPublishedArticles);
 
+const optionalAuth = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+    } catch (error) {
+      // Ignore token errors for optional auth
+      req.user = null;
+    }
+  }
+  
+  next();
+};
 
-
+router.get('/:id', optionalAuth,articleController.getArticleById);
 // ==========================================
 // PROTECTED ROUTES
 // ==========================================
-router.use(auth);
+router.use(auth)
 
 // Article CRUD Operations
-router.get('/my', articleController.getMyArticles);
-router.get('/all', authorize('admin', 'mentor'), articleController.getAllArticles);
+router.get('/my',auth, authorize('admin', 'mentor','author'),  articleController.getMyArticles);
+router.get('/all', authorize('admin', 'mentor','author'), articleController.getAllArticles);
+router.get('/by-category',auth, authorize('admin', 'mentor','author'), articleController.getArticlesByCategory);
+
 
 // GET /api/articles/:id - Get single article
-router.get('/:id', articleController.getArticleById);
 
 
 router.post('/', authorize('admin', 'mentor', 'author'), articleController.createArticle);
@@ -39,6 +56,8 @@ router.put('/:id/unpublish', canEditArticle, articleController.unpublishArticle)
 
 // Article Engagement
 router.post('/:id/like', articleController.likeArticle);
+router.post('/:id/view', optionalAuth, articleController.trackArticleView);
+
 
 // Comments
 router.post('/:id/comments', articleController.addComment);
@@ -56,5 +75,12 @@ router.get('/categories', articleController.getCategories);
 router.post('/categories', authorize('admin', 'mentor'), articleController.createCategory);
 router.put('/categories/:id', authorize('admin'), articleController.updateCategory);
 router.delete('/categories/:id', authorize('admin'), articleController.deleteCategory);
+
+// Add these routes to your routes/articles.js
+
+// Admin article ordering routes
+router.get('/admin/reorder/:categoryId', auth, authorize('admin', 'mentor','author'), articleController.getArticlesForReordering);
+router.put('/admin/reorder', auth, authorize('admin', 'mentor','author'), articleController.reorderArticles);
+router.put('/:id/move-category', auth, authorize('admin', 'mentor','author'), articleController.moveArticleCategory);
 
 module.exports = router;

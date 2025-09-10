@@ -1828,7 +1828,7 @@ GET /stats/dashboard
 
 ### Upload Image for Questions
 ```http
-POST /upload/image
+POST upload/image
 ```
 
 **Content-Type:** `multipart/form-data`

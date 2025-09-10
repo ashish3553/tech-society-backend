@@ -705,18 +705,17 @@ exports.getAuthorStats = async (req, res) => {
 
 
 
+// In your backend, update the searchCollaborators function:
 exports.searchCollaborators = async (req, res) => {
   try {
     const { q = '', excludeArticle = null, limit = 20 } = req.query;
 
-    // Build search filter
     const filter = {
       isActive: true,
       'invitation.status': 'accepted',
       'permissions.canCollaborate': true
     };
 
-    // Add text search if query provided
     if (q.trim()) {
       filter.$or = [
         { 'profile.name': { $regex: q, $options: 'i' } },
@@ -726,45 +725,30 @@ exports.searchCollaborators = async (req, res) => {
     }
 
     let authors = await Author.find(filter)
-      .select('profile.name profile.email profile.avatar profile.verified profile.expertise profile.bio analytics.totalArticles')
+      .populate('userId', 'name email') // Populate user data
+      .select('profile userId analytics')
       .sort({ 'analytics.totalArticles': -1, 'profile.name': 1 })
       .limit(parseInt(limit))
       .lean();
 
-    // Exclude authors already collaborating on specific article
-    if (excludeArticle) {
-      const article = await Article.findById(excludeArticle).select('collaborators').lean();
-      if (article && article.collaborators) {
-        const collaboratingUserIds = article.collaborators.map(c => c.userId.toString());
-        authors = authors.filter(author => !collaboratingUserIds.includes(author.userId?.toString()));
-      }
-    }
-
-    // Add additional metadata for each author
-    const authorsWithMetadata = await Promise.all(
-      authors.map(async (author) => {
-        const recentArticles = await Article.find({
-          $or: [
-            { createdBy: author.userId },
-            { 'collaborators.userId': author.userId }
-          ]
-        })
-        .select('title slug createdAt isPublished')
-        .sort({ createdAt: -1 })
-        .limit(3)
-        .lean();
-
-        return {
-          ...author,
-          recentArticles,
-          collaborationScore: calculateCollaborationScore(author, recentArticles)
-        };
-      })
-    );
+    // Normalize the response structure
+    const formattedAuthors = authors.map(author => ({
+      _id: author._id,
+      name: author.profile?.name || author.userId?.name || 'Unknown',
+      email: author.profile?.email || author.userId?.email || '',
+      profile: {
+        name: author.profile?.name || author.userId?.name || 'Unknown',
+        email: author.profile?.email || author.userId?.email || '',
+        bio: author.profile?.bio || '',
+        avatar: author.profile?.avatar || '',
+        expertise: author.profile?.expertise || []
+      },
+      analytics: author.analytics
+    }));
 
     res.json({
       success: true,
-      data: authorsWithMetadata.sort((a, b) => b.collaborationScore - a.collaborationScore)
+      data: formattedAuthors
     });
   } catch (error) {
     res.status(500).json({
@@ -773,7 +757,6 @@ exports.searchCollaborators = async (req, res) => {
     });
   }
 };
-
 // Helper function to calculate collaboration score
 function calculateCollaborationScore(author, recentArticles) {
   let score = 0;

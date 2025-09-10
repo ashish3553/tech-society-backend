@@ -2,6 +2,10 @@
 const ArticleCategory = require('../models/ArticleCategory');
 const Article = require('../models/Article');
 
+
+
+
+
 // GET /api/categories - Get all categories (simple list)
 exports.getAllCategories = async (req, res, next) => {
   try {
@@ -29,16 +33,30 @@ exports.getAllCategories = async (req, res, next) => {
 };
 
 // GET /api/categories/tree - Get category tree (hierarchical structure)
+// In controllers/categoryController.js, update getCategoryTree method:
 exports.getCategoryTree = async (req, res, next) => {
   try {
     console.log('🌳 Building category tree...');
     
-    // Get all categories and build tree structure
+    // Get all categories with article counts
+    const Article = require('../models/Article');
     const allCategories = await ArticleCategory.find({ isVisible: true })
       .sort({ level: 1, sortOrder: 1, name: 1 })
       .lean();
 
-    // Build tree structure recursively
+    // Get article counts for each category
+    const articleCounts = await Article.aggregate([
+      { $match: { isPublished: true } },
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+
+    // Map counts to categories
+    const countMap = {};
+    articleCounts.forEach(item => {
+      if (item._id) countMap[item._id.toString()] = item.count;
+    });
+
+    // Build tree structure recursively with counts
     const buildTree = (parentId = null) => {
       return allCategories
         .filter(cat => {
@@ -49,6 +67,7 @@ exports.getCategoryTree = async (req, res, next) => {
         })
         .map(cat => ({
           ...cat,
+          articleCount: countMap[cat._id.toString()] || 0,
           children: buildTree(cat._id)
         }));
     };
@@ -67,7 +86,6 @@ exports.getCategoryTree = async (req, res, next) => {
     next(error);
   }
 };
-
 // GET /api/categories/flat - Get flattened categories list (for dropdowns)
 exports.getFlattenedCategories = async (req, res, next) => {
   try {

@@ -25,7 +25,7 @@ const ContentBlockSchema = new mongoose.Schema({
   id: String,
   type: {
     type: String,
-    enum: ['image', 'code', 'video', 'text', 'quiz'],
+    enum: ['image', 'code', 'video', 'text', 'quiz', 'carousel'], // Added carousel
     required: true
   },
   content: {
@@ -42,11 +42,28 @@ const ContentBlockSchema = new mongoose.Schema({
     language: String,
     title: String,
     
-    // For videos
-    videoUrl: String, // Cloudinary URL
+    // For videos - ENHANCED
+    videoUrl: String, // Cloudinary URL or YouTube embed
     driveLink: String, // Google Drive link alternative
+    youtubeUrl: String, // Original YouTube URL
     videoTitle: String,
     thumbnail: String,
+    duration: Number, // Video duration in seconds
+    
+    // For carousel blocks - NEW
+    slides: [{
+      id: String,
+      title: String,
+      subtitle: String,
+      description: String,
+      imageUrl: String,
+      backgroundColor: { type: String, default: '#6366f1' },
+      _id: false
+    }],
+    autoPlay: { type: Boolean, default: true },
+    autoPlayInterval: { type: Number, default: 5000 },
+    showArrows: { type: Boolean, default: true },
+    showIndicators: { type: Boolean, default: true },
     
     // For embedded quiz
     quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'ArticleQuiz' }
@@ -56,6 +73,7 @@ const ContentBlockSchema = new mongoose.Schema({
   // Author attribution for content blocks
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Author' }
 });
+
 
 const ArticleSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -127,6 +145,16 @@ category: {
   shareImage: String, // Social media share image
   readingTime: Number, // Estimated reading time in minutes
   
+
+   sortOrder: { 
+    type: Number, 
+    default: 0 
+  },
+  
+  views: { 
+    type: Number, 
+    default: 0 
+  },
   // SEO
   slug: String,
   metaDescription: String,
@@ -147,13 +175,14 @@ category: {
 ArticleSchema.index({ createdBy: 1 });
 ArticleSchema.index({ authors: 1 });
 ArticleSchema.index({ isPublished: 1 });
-ArticleSchema.index({ category: 1 });
+// ArticleSchema.index({ category: 1 });
 ArticleSchema.index({ slug: 1 }, { unique: true });
 ArticleSchema.index({ 'visibility.type': 1 });
 ArticleSchema.index({ 'visibility.branches': 1 });
 ArticleSchema.index({ 'visibility.years': 1 });
 ArticleSchema.index({ publishedAt: -1 });
 ArticleSchema.index({ createdAt: -1 });
+ArticleSchema.index({ category: 1, sortOrder: 1 });
 
 // // Generate unique slug before saving
 // ArticleSchema.pre('save', function(next) {

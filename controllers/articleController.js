@@ -354,31 +354,210 @@ const getPublishedArticles = async (req, res, next) => {
   }
 };
 
-const getArticleById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { preview = false } = req.query;
+// Add these methods to your articleController.js
 
-    // Validate MongoDB ObjectId
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({
+// GET /api/articles/admin/reorder/:categoryId - Get articles for reordering
+const getArticlesForReordering = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+    
+    // Only admins can access this
+    if (req.user.role !== 'admin' && req.user.role !== 'mentor') {
+      return res.status(403).json({
         success: false,
-        message: 'Invalid article ID'
+        message: 'Only administrators and mentors can reorder articles'
       });
     }
 
-    const article = await Article.findById(id)
-      .populate('characters')
-      .populate('category', 'name slug color icon')
-      .populate('createdBy', 'name email')
-      .populate('authors', 'profile.name profile.email profile.avatar profile.verified')
-      .populate({
-        path: 'contentBlocks.content.quizId',
-        populate: {
-          path: 'questions',
-          select: 'type content options correctAnswers'
-        }
+    const articles = await Article.find({ category: categoryId })
+      .select('title subtitle sortOrder createdAt isPublished views')
+      .populate('createdBy', 'name')
+      .sort({ sortOrder: 1, createdAt: 1 })
+      .lean();
+
+    res.json({
+      success: true,
+      data: articles,
+      count: articles.length
+    });
+  } catch (error) {
+    console.error('Get articles for reordering error:', error);
+    next(error);
+  }
+};
+
+// PUT /api/articles/admin/reorder - Reorder articles within a category
+const reorderArticles = async (req, res, next) => {
+  try {
+    const { categoryId, articleOrders } = req.body;
+    
+    // Only admins can reorder
+    if (req.user.role !== 'admin' && req.user.role !== 'mentor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators and mentors can reorder articles'
       });
+    }
+
+    // Validate input
+    if (!categoryId || !Array.isArray(articleOrders)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category ID and article orders array are required'
+      });
+    }
+
+    // Update each article's sortOrder
+    const bulkOps = articleOrders.map((item, index) => ({
+      updateOne: {
+        filter: { _id: item.articleId, category: categoryId },
+        update: { sortOrder: index }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Article.bulkWrite(bulkOps);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully reordered ${bulkOps.length} articles`,
+      data: { reorderedCount: bulkOps.length }
+    });
+  } catch (error) {
+    console.error('Reorder articles error:', error);
+    next(error);
+  }
+};
+
+// PUT /api/articles/:id/move-category - Move article to different category
+const moveArticleCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { newCategoryId, newSortOrder } = req.body;
+    
+    // Only admins can move articles
+    if (req.user.role !== 'admin' && req.user.role !== 'mentor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only administrators and mentors can move articles'
+      });
+    }
+
+    const article = await Article.findById(id);
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Validate new category exists and is not a folder
+    const newCategory = await ArticleCategory.findById(newCategoryId);
+    if (!newCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'New category not found'
+      });
+    }
+
+    if (newCategory.isFolder) {
+      return res.status(400).json({
+        success: false,
+        message: 'Articles cannot be moved to folder categories'
+      });
+    }
+
+    // Update article
+    article.category = newCategoryId;
+    article.sortOrder = newSortOrder || 0;
+    await article.save();
+
+    res.json({
+      success: true,
+      message: 'Article moved successfully',
+      data: article
+    });
+  } catch (error) {
+    console.error('Move article category error:', error);
+    next(error);
+  }
+};
+
+
+
+// In your article controller, add:
+// Update this existing method in your articleController.js
+const getArticlesByCategory = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+    const {
+      page = 1,
+      limit = 20,
+      sort = 'sortOrder', // Default to sortOrder instead of createdAt
+      status = 'published'
+    } = req.query;
+
+    // Build query
+    const query = { category: categoryId };
+    
+    if (status === 'published') {
+      query.isPublished = true;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // UPDATED: Sort by sortOrder within category for proper chronology
+    const articles = await Article.find(query)
+      .populate('createdBy', 'name email profileImage')
+      .populate('category', 'name color slug')
+      .populate('authors', 'name email')
+      .sort({ sortOrder: 1, createdAt: 1 }) // sortOrder first, then createdAt
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Article.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: articles,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalArticles: total,
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get articles by category error:', error);
+    next(error);
+  }
+};
+// In controllers/articleController.js - getArticleById function
+const getArticleById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { preview } = req.query;
+
+    console.log('🔍 Debug - req.user:', req.user);
+    console.log('🔍 Debug - req.user.role:', req.user?.role);
+    console.log('🔍 Debug - preview query:', preview);
+
+    // Validate article ID format
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid article ID format'
+      });
+    }
+
+    // FIXED: Properly declare article variable
+    const article = await Article.findById(id)
+      .populate('createdBy', 'name email')
+      .populate('category', 'name color')
+      .populate('characters')
+      .populate('authors', 'name email');
 
     if (!article) {
       return res.status(404).json({
@@ -387,46 +566,84 @@ const getArticleById = async (req, res, next) => {
       });
     }
 
-    // Check if article is published (unless preview mode)
-    if (!article.isPublished && !preview) {
-      return res.status(404).json({
-        success: false,
-        message: 'Article not available'
+    console.log('🔍 Debug - article found:', article.title);
+    console.log('🔍 Debug - article.isPublished:', article.isPublished);
+
+    // FIXED: Handle case when user is not authenticated (optionalAuth)
+    if (!req.user) {
+      // Only allow access to published articles for unauthenticated users
+      if (!article.isPublished) {
+        return res.status(401).json({
+          success: false,
+          message: 'This article is not published. Please login to view drafts.'
+        });
+      }
+      
+      // For published articles, allow unauthenticated access
+      return res.json({
+        success: true,
+        data: article
       });
     }
 
-    // Check visibility permissions
-    if (!article.isVisibleToUser(req.user)) {
+    // Enhanced access control for authenticated users
+    const isPublished = article.isPublished;
+    const isAuthor = article.createdBy._id.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    const isMentor = req.user.role === 'mentor';
+    const isCollaborator = article.authors?.some(author => 
+      author._id.toString() === req.user.id
+    );
+
+    console.log('🔍 Debug - Access control:', {
+      isPublished,
+      isAuthor,
+      isAdmin,
+      isMentor,
+      isCollaborator,
+      userRole: req.user.role
+    });
+
+    const canViewDraft = (
+      isPublished ||           // Published articles
+      isAuthor ||             // Article author
+      isAdmin ||              // Admin users
+      isMentor ||             // Mentor users
+      isCollaborator          // Collaborating authors
+    );
+
+    if (!canViewDraft) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to view this article'
+        message: 'Access denied. You do not have permission to view this draft article.',
+        debug: {
+          isPublished,
+          isAuthor,
+          isAdmin,
+          isMentor,
+          userRole: req.user.role
+        }
       });
     }
 
-    // Increment view count for published articles (only if not preview and user is logged in)
-    if (article.isPublished && !preview && req.user) {
-      article.views += 1;
+    // Track view count for published articles (exclude author views)
+    if (isPublished && !isAuthor) {
+      article.views = (article.views || 0) + 1;
       await article.save();
-    }
-
-    // For non-logged users, return partial content for engagement
-    let responseData = article;
-    if (!req.user) {
-      responseData = {
-        ...article.toObject(),
-        articleFlow: article.articleFlow.slice(0, 5), // First 5 elements only
-        isPartial: true,
-        loginRequired: true
-      };
     }
 
     res.json({
       success: true,
-      data: responseData
+      data: article
     });
 
   } catch (error) {
-    next(error);
+    console.error('Error fetching article:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch article',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -848,6 +1065,7 @@ const addComment = async (req, res, next) => {
   try {
     const { content, parentComment } = req.body;
     const articleId = req.params.id;
+    console.log("Req.user is:", req.user)
 
     const article = await Article.findById(articleId);
     if (!article) {
@@ -946,6 +1164,155 @@ const likeComment = async (req, res, next) => {
   }
 };
 
+
+
+const getArticleWithMetadata = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { preview = false } = req.query;
+
+    const article = await Article.findById(id)
+      .populate('characters')
+      .populate('category', 'name slug color icon')
+      .populate('createdBy', 'name email')
+      .populate('authors', 'profile.name profile.email profile.avatar profile.verified')
+      .populate({
+        path: 'contentBlocks.content.quizId',
+        populate: {
+          path: 'questions',
+          select: 'type content options correctAnswers'
+        }
+      });
+
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Enhanced metadata
+    const metadata = {
+      readingTime: article.readingTime,
+      wordCount: calculateWordCount(article),
+      lastUpdated: article.updatedAt,
+      publishedAt: article.publishedAt,
+      views: article.views,
+      likes: article.likes?.length || 0,
+      commentsCount: article.comments?.length || 0,
+      collaboratorsCount: article.authors?.length || 0,
+      contentStats: {
+        totalBlocks: article.contentBlocks.length,
+        messages: article.messages.length,
+        images: article.contentBlocks.filter(b => b.type === 'image').length,
+        videos: article.contentBlocks.filter(b => b.type === 'video').length,
+        code: article.contentBlocks.filter(b => b.type === 'code').length,
+        carousels: article.contentBlocks.filter(b => b.type === 'carousel').length
+      }
+    };
+
+    // Author attribution
+    const authorInfo = {
+      mainAuthor: {
+        id: article.createdBy._id,
+        name: article.createdBy.name,
+        email: article.createdBy.email,
+        role: 'owner'
+      },
+      collaborators: article.authors.map(author => ({
+        id: author._id,
+        name: author.profile.name,
+        email: author.profile.email,
+        avatar: author.profile.avatar,
+        verified: author.profile.verified,
+        role: 'collaborator'
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: {
+        ...article.toObject(),
+        metadata,
+        authorInfo
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Helper function to calculate word count
+function calculateWordCount(article) {
+  let wordCount = 0;
+  
+  // Count words in messages
+  article.messages.forEach(msg => {
+    if (msg.message) {
+      wordCount += msg.message.split(' ').length;
+    }
+  });
+  
+  // Count words in content blocks
+  article.contentBlocks.forEach(block => {
+    if (block.type === 'text' && block.content.html) {
+      const textContent = block.content.html.replace(/<[^>]*>/g, '');
+      wordCount += textContent.split(' ').length;
+    }
+    if (block.type === 'carousel' && block.content.slides) {
+      block.content.slides.forEach(slide => {
+        if (slide.title) wordCount += slide.title.split(' ').length;
+        if (slide.subtitle) wordCount += slide.subtitle.split(' ').length;
+        if (slide.description) wordCount += slide.description.split(' ').length;
+      });
+    }
+  });
+  
+  return wordCount;
+}
+
+
+// POST /api/articles/:id/view - Track article view
+// Update trackArticleView to handle optional auth
+// Update trackArticleView to handle optional auth
+const trackArticleView = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id; // Optional user
+
+    const article = await Article.findById(id);
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Always increment view count
+    article.views = (article.views || 0) + 1;
+    
+    // Only track unique views if user is logged in
+    if (userId && !article.viewedBy?.includes(userId)) {
+      article.viewedBy = article.viewedBy || [];
+      article.viewedBy.push(userId);
+    }
+    
+    await article.save();
+
+    res.json({
+      success: true,
+      data: {
+        views: article.views,
+        message: 'View tracked successfully'
+      }
+    });
+  } catch (error) {
+    console.error('Track view error:', error);
+    next(error);
+  }
+};
+
 // ==========================================
 // CONTROLLER EXPORTS
 // ==========================================
@@ -953,6 +1320,7 @@ const likeComment = async (req, res, next) => {
 module.exports = {
   // Article CRUD
   createArticle,
+  getArticleWithMetadata,
   getMyArticles,
   getAllArticles,
   getPublishedArticles,
@@ -960,13 +1328,18 @@ module.exports = {
   getArticleForEdit,
   updateArticle,
   deleteArticle,
+  getArticlesByCategory,
+  reorderArticles,
+  getArticlesForReordering,
+  moveArticleCategory,
   
-  // Article Publishing
+  // Article Publishing 
   publishArticle,
   unpublishArticle,
   
   // Article Engagement
   likeArticle,
+  trackArticleView,
   
   // Characters
   createCharacter,

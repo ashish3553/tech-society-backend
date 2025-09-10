@@ -1154,7 +1154,7 @@ app.use('/api',              codeSubmissionRoutes)
 
 ### File Upload System (`routes/upload.js`)
 
-**POST `/api/upload/image`** - Upload images for questions
+**POST `/apiupload/image`** - Upload images for questions
 ```javascript
 // Content-Type: multipart/form-data
 // Form Field: file (image file)
@@ -1467,7 +1467,7 @@ curl -X GET http://localhost:5000/api/users \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Test file upload
-curl -X POST http://localhost:5000/api/upload/image \
+curl -X POST http://localhost:5000/apiupload/image \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -F "file=@/path/to/image.jpg"
 ```

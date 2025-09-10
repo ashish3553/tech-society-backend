@@ -75,10 +75,10 @@ router.get('/:id/breadcrumb', getCategoryWithBreadcrumb);
 // ==========================================
 
 // POST /api/categories - Create new category
-router.post('/', auth, authorize('admin', 'mentor'), createCategory);
+router.post('/', auth, authorize('admin', 'mentor','author'), createCategory);
 
 // PUT /api/categories/:id - Update category  
-router.put('/:id', auth, authorize('admin'), updateCategory);
+router.put('/:id', auth, authorize('admin','mentor','author'), updateCategory);
 
 // DELETE /api/categories/:id - Delete category
 router.delete('/:id', auth, authorize('admin'), deleteCategory);

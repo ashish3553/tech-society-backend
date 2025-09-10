@@ -1,10 +1,12 @@
+// routes/upload.js
+
 const router  = require('express').Router();
 const multer  = require('multer');
 const cloud   = require('../utils/cloudinary');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// POST /api/upload/image
+// POST /apiupload/image
 router.post(
   '/image',
   upload.single('file'),

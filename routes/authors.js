@@ -30,14 +30,14 @@ router.use(auth);
 console.log("Hitting here 1")
 // Send author invitation
 router.post('/invite', 
-  authorize('admin', 'mentor'), 
+  authorize('admin'), 
   authorController.inviteAuthor
 );
 console.log("Hitting here 2")
 
 // Resend invitation
 router.post('/:authorId/resend-invitation', 
-  authorize('admin', 'mentor'), 
+  authorize('admin'), 
   authorController.resendInvitation
 );
 
@@ -71,7 +71,7 @@ router.get('/stats',
 
 // Get specific author profile (Admin/Mentor only)
 router.get('/:authorId', 
-  authorize('admin', 'mentor'), 
+  authorize('admin', 'mentor','author'), 
   authorController.getAuthorProfile
 );
 
@@ -94,19 +94,19 @@ router.get('/:authorId/analytics', authorController.getAuthorAnalytics);
 
 // Search authors for collaboration
 router.get('/search/collaborators', 
-  authorize('admin', 'mentor'), 
+  authorize('admin', 'mentor','author'), 
   authorController.searchCollaborators
 );
 
 // Add article collaborator
 router.post('/collaborations', 
-  authorize('admin', 'mentor'), 
+  authorize('admin', 'mentor','author'), 
   authorController.addArticleCollaborator
 );
 
 // Remove article collaborator
 router.delete('/collaborations/:articleId/:authorId', 
-  authorize('admin', 'mentor'), 
+  authorize('admin', 'mentor','author'), 
   authorController.removeArticleCollaborator
 );
 
